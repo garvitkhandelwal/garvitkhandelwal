@@ -36,13 +36,6 @@ STYLE = f"""<style>
 .sans{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}}
 .mono{{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace}}
 .ink{{fill:{INK}}} .ink2{{fill:{INK2}}} .muted{{fill:{MUTED}}} .acc{{fill:{ACCENT}}}
-.fade{{animation:fade .8s ease-out both}}
-@keyframes fade{{from{{opacity:0}}}}
-.grow{{transform-box:fill-box;transform-origin:bottom;animation:grow .9s cubic-bezier(.2,.8,.2,1) both}}
-@keyframes grow{{from{{transform:scaleY(0)}}}}
-.growx{{transform-box:fill-box;transform-origin:left;animation:growx .9s cubic-bezier(.2,.8,.2,1) both}}
-@keyframes growx{{from{{transform:scaleX(0)}}}}
-@media (prefers-reduced-motion:reduce){{.fade,.grow,.growx{{animation:none}}}}
 </style>"""
 
 
@@ -164,10 +157,6 @@ def short(n):
 
 
 def frame(w, h, body, title):
-    if os.environ.get("NO_ANIM"):
-        import re
-        body = re.sub(r"<animate[^>]*/>", "", body)
-        body = body.replace('class="grow"', "").replace('class="growx"', "").replace(" fade", "").replace(' class="fade"', "")
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
         f'role="img" aria-label="{escape(title)}"><title>{escape(title)}</title>{STYLE}'
@@ -252,8 +241,8 @@ def banner(s):
     body += (
         f'<text x="40" y="56" class="mono" font-size="14"><tspan fill="{ACCENT}">garvit@os</tspan>'
         f'<tspan class="muted"> ~ % </tspan><tspan class="ink">{cmd}</tspan></text>'
-        f'<text x="38" y="112" class="sans ink fade" font-size="46" font-weight="700" letter-spacing="-1">{escape(s["name"])}</text>'
-        f'<text x="40" y="142" class="sans ink2 fade" font-size="16" style="animation-delay:.3s">'
+        f'<text x="38" y="112" class="sans ink" font-size="46" font-weight="700" letter-spacing="-1">{escape(s["name"])}</text>'
+        f'<text x="40" y="142" class="sans ink2" font-size="16">'
         f'Founding Engineer @ Wavelength <tspan class="muted">(YC W24)</tspan>'
         f'<tspan class="muted">  ·  India  ·  shipping since {s["since"]}</tspan></text>'
         f"{typed}"
@@ -279,9 +268,8 @@ def stats_card(s):
     tw, th, gx, gy, x0, y0 = 186, 104, 14, 14, 28, 58
     for i, (label, value, cap) in enumerate(tiles):
         x, y = x0 + (i % 4) * (tw + gx), y0 + (i // 4) * (th + gy)
-        d = f"animation-delay:{0.08 * i:.2f}s"
         body += (
-            f'<g class="fade" style="{d}"><rect x="{x}" y="{y}" width="{tw}" height="{th}" rx="10" fill="{CARD}" fill-opacity=".85" stroke="{STROKE}"/>'
+            f'<g><rect x="{x}" y="{y}" width="{tw}" height="{th}" rx="10" fill="{CARD}" fill-opacity=".85" stroke="{STROKE}"/>'
             f'<rect x="{x + 16}" y="{y + 16}" width="14" height="3" rx="1.5" fill="{GLOW if i == 0 else ACCENT}"/>'
             f'<text x="{x + 16}" y="{y + 36}" class="mono muted" font-size="10.5" letter-spacing=".8">{label}</text>'
             f'<text x="{x + 15}" y="{y + 70}" class="sans ink" font-size="30" font-weight="700" letter-spacing="-.5">{escape(value)}</text>'
@@ -317,8 +305,8 @@ def years_card(s):
             f"M{x0:.1f},{base} V{y0 + r:.1f} Q{x0:.1f},{y0:.1f} {x0 + r:.1f},{y0:.1f} "
             f"H{x0 + bw - r:.1f} Q{x0 + bw:.1f},{y0:.1f} {x0 + bw:.1f},{y0 + r:.1f} V{base} Z"
         )
-        body += f'<path d="{path}" fill="{fill}" fill-opacity=".85" class="grow" style="animation-delay:{0.06 * i:.2f}s"/>'
-        body += f'<text x="{cx:.1f}" y="{y0 - 8:.1f}" class="mono ink2 fade" font-size="11" text-anchor="middle" style="animation-delay:{0.6 + 0.04 * i:.2f}s">{fmt(v)}</text>'
+        body += f'<path d="{path}" fill="{fill}" fill-opacity=".85"/>'
+        body += f'<text x="{cx:.1f}" y="{y0 - 8:.1f}" class="mono ink2" font-size="11" text-anchor="middle">{fmt(v)}</text>'
         body += f'<text x="{cx:.1f}" y="{base + 18}" class="mono muted" font-size="11" text-anchor="middle">{y}</text>'
     # era brackets
     def era(a, b, label):
@@ -356,7 +344,7 @@ def rhythm_card(s):
         col = ACCENT_HI if night else ACCENT
         body += (
             f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="{col}" stroke-width="7" '
-            f'stroke-linecap="round" stroke-opacity="{0.95 if night else 0.7}" class="fade" style="animation-delay:{0.03 * hr:.2f}s"/>'
+            f'stroke-linecap="round" stroke-opacity="{0.95 if night else 0.7}"/>'
         )
     for hr, lab in ((0, "00"), (6, "06"), (12, "12"), (18, "18")):
         a = math.radians(hr * 15 - 90)
@@ -389,7 +377,7 @@ def rhythm_card(s):
         fill = ACCENT_HI if i == best else ACCENT
         body += (
             f'<text x="{bx}" y="{y + 11}" class="mono ink2" font-size="11.5">{nm}</text>'
-            f'<rect x="{bx + 40}" y="{y}" width="{L:.1f}" height="{bh}" rx="4" fill="{fill}" fill-opacity="{0.95 if i == best else 0.75}" class="growx" style="animation-delay:{0.06 * i:.2f}s"/>'
+            f'<rect x="{bx + 40}" y="{y}" width="{L:.1f}" height="{bh}" rx="4" fill="{fill}" fill-opacity="{0.95 if i == best else 0.75}"/>'
             f'<text x="{bx + 48 + L:.1f}" y="{y + 11}" class="mono muted" font-size="11">{fmt(v)}</text>'
         )
     return frame(w, h, body, f"Shipping rhythm: {night_share}% of PRs opened between 10 PM and 5 AM")

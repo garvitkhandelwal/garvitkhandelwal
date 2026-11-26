@@ -27,30 +27,13 @@ off-screen   → travelling · staring at the night sky · falling down mystery 
 
 <br />
 
-### `~ % gh stats --all-time`
+### `~ % cd ~/analytics`
 
-<img src="./assets/stats.svg" width="100%" alt="387 pull requests, 318 merged, 4,117 commits, 5,910 contributions" />
+<img src="./assets/stats.svg" width="100%" alt="All-time GitHub stats: pull requests, merges, commits, contributions" />
 
 <img src="./assets/years.svg" width="100%" alt="Contributions per year" />
 
 <img src="./assets/rhythm.svg" width="100%" alt="When I ship: pull requests by hour of day and contributions by weekday" />
-
-<br />
-
-### `~ % ls ~/side-quests`
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <a href="https://github.com/garvitkhandelwal/usage-rings"><b>usage-rings</b></a><br />
-      <sub>A menu bar app that shows your AI coding plan usage as activity rings, so you know how much is left before you hit the wall.</sub>
-    </td>
-    <td width="50%" valign="top">
-      <a href="https://github.com/garvitkhandelwal/Slate"><b>Slate</b></a><br />
-      <sub>A calm, private weekly planner. Local-only: no accounts, no network, nothing to sync. Keeps a rolling 30-day history.</sub>
-    </td>
-  </tr>
-</table>
 
 <br />
 
