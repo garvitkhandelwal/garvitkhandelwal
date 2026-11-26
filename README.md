@@ -11,9 +11,9 @@
 ---
 
 - 🚀 Founding engineer at Wavelength (YC W24), building AI-driven products end to end.
-- 🌱 Got into software through open source, contributing to [FOSSASIA](https://github.com/fossasia) in college.
+- 🌱 In the past, have worked in a variety of business domains like developer tools and platforms, cybersecurity.
 - 🛠️ On the side, I build small local-first tools I wish existed. No accounts, no tracking.
-- 🔭 Outside of work: travelling, astronomy, and unsolved mysteries.
+- 🔭 Outside of work, you'll find me travelling or having a nice coffee somewhere
 
 <br />
 
