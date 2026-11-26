@@ -9,5 +9,3 @@ Outside of work: travelling, astronomy, and unsolved mysteries.
 <!-- stats:start -->
 **387** pull requests &nbsp;·&nbsp; **318** merged &nbsp;·&nbsp; **4,117** commits &nbsp;·&nbsp; **5,913** contributions since 2016
 <!-- stats:end -->
-
-[garvitkhandelwal.com](https://www.garvitkhandelwal.com) &nbsp;·&nbsp; [X / @garvit_kh](https://x.com/garvit_kh)
