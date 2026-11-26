@@ -1,0 +1,35 @@
+{
+  "name": "Garvit Khandelwal",
+  "since": "2016",
+  "updated": "2026-11-27",
+  "prs": 387,
+  "merged": 318,
+  "merge_rate": 93,
+  "commits": 4117,
+  "additions": 997232,
+  "deletions": 106376,
+  "median_merge_h": 5.871666666666667,
+  "contributions": 5910,
+  "years": {
+    "2016": 1,
+    "2017": 39,
+    "2018": 100,
+    "2019": 120,
+    "2020": 9,
+    "2021": 281,
+    "2022": 1360,
+    "2023": 831,
+    "2024": 1067,
+    "2025": 1020,
+    "2026": 1082
+  },
+  "active_days": 1291,
+  "longest": 16,
+  "current": 0,
+  "best_day": [
+    "2026-10-29",
+    66
+  ],
+  "prs_this_year": 359,
+  "this_year": "2026"
+}
