@@ -52,20 +52,32 @@ def stats():
     since = int(gql("query($l:String!){user(login:$l){createdAt}}", {"l": LOGIN})["createdAt"][:4])
     this_year = dt.date.today().year
 
-    by_year = {}
+    by_year, days = {}, {}
     for year in range(since, this_year + 1):
-        c = gql(
-            "query($l:String!,$f:DateTime!,$t:DateTime!){user(login:$l){"
-            "contributionsCollection(from:$f,to:$t){contributionCalendar{totalContributions}}}}",
+        cal = gql(
+            "query($l:String!,$f:DateTime!,$t:DateTime!){user(login:$l){contributionsCollection(from:$f,to:$t){"
+            "contributionCalendar{totalContributions weeks{contributionDays{date contributionCount}}}}}}",
             {"l": LOGIN, "f": f"{year}-01-01T00:00:00Z", "t": f"{year}-12-31T23:59:59Z"},
-        )
-        by_year[year] = c["contributionsCollection"]["contributionCalendar"]["totalContributions"]
+        )["contributionsCollection"]["contributionCalendar"]
+        by_year[year] = cal["totalContributions"]
+        for week in cal["weeks"]:
+            for d in week["contributionDays"]:
+                days[d["date"]] = d["contributionCount"]
 
+    big_years = [y for y, v in by_year.items() if v >= 1000]
+
+    best_date, best = max(days.items(), key=lambda kv: (kv[1], kv[0]))
     return {
         "contributions": sum(by_year.values()),
         "this_year_contributions": by_year[this_year],
         "this_year": this_year,
         "since": since,
+        "years_on_github": this_year - since,
+        "active_days": sum(1 for v in days.values() if v > 0),
+        "big_years": big_years,
+        "best_day": best,
+        "best_date": best_date,
+        "by_year": by_year,
     }
 
 
@@ -125,28 +137,70 @@ def header():
     return svg(h, body, f"{NAME}, {ROLE}")
 
 
-def stats_card(s):
-    w, h = 440, 132
-    tiles = [
-        ("Total contributions", f"{s['contributions']:,}", f"since {s['since']}"),
-        (f"Contributions in {s['this_year']}", f"{s['this_year_contributions']:,}", "and counting"),
-    ]
-    pad, gap = 16, 10
-    tw, th = (w - 2 * pad - gap) / 2, h - 2 * pad
-    body = stars(h, 24, seed=3, twinkle=0.12, w=w)
-    for i, (label, value, note) in enumerate(tiles):
-        x = pad + i * (tw + gap)
+def tiles_card(tiles, label, w=440, cols=2):
+    pad, gap, th = 16, 10, 100
+    rows = -(-len(tiles) // cols)
+    h = 2 * pad + rows * th + (rows - 1) * gap
+    tw = (w - 2 * pad - (cols - 1) * gap) / cols
+    body = stars(h, 34, seed=3, twinkle=0.12, w=w)
+    for i, (name, value, note) in enumerate(tiles):
+        x, y = pad + (i % cols) * (tw + gap), pad + (i // cols) * (th + gap)
         body += (
-            f'<rect x="{x:.1f}" y="{pad}" width="{tw:.1f}" height="{th}" rx="10" fill="{TILE}" fill-opacity=".85" stroke="{STROKE}"/>'
-            f'<text x="{x + 18:.1f}" y="{pad + 30}" fill="{MUTED}" font-size="14">{label}</text>'
-            f'<text x="{x + 17:.1f}" y="{pad + 68}" fill="{INK}" font-size="32" font-weight="700" letter-spacing="-.5">{value}</text>'
-            f'<text x="{x + 18:.1f}" y="{pad + 89}" fill="{MUTED}" font-size="13">{note}</text>'
+            f'<rect x="{x:.1f}" y="{y}" width="{tw:.1f}" height="{th}" rx="10" fill="{TILE}" fill-opacity=".85" stroke="{STROKE}"/>'
+            f'<text x="{x + 18:.1f}" y="{y + 30}" fill="{MUTED}" font-size="14">{name}</text>'
+            f'<text x="{x + 17:.1f}" y="{y + 68}" fill="{INK}" font-size="32" font-weight="700" letter-spacing="-.5">{value}</text>'
+            f'<text x="{x + 18:.1f}" y="{y + 89}" fill="{MUTED}" font-size="13">{note}</text>'
         )
-    label = (
-        f"{s['contributions']:,} contributions since {s['since']}, "
-        f"{s['this_year_contributions']:,} in {s['this_year']}"
-    )
     return svg(h, body, label, w)
+
+
+def stats_card(s):
+    big = s["big_years"]
+    span = s["this_year"] - min(big) + 1 if big else 0
+    best_on = dt.date.fromisoformat(s["best_date"]).strftime("%-d %b %Y")
+    tiles = [
+        ("Total contributions", f"{s['contributions']:,}", "all time"),
+        (f"Contributions in {s['this_year']}", f"{s['this_year_contributions']:,}", "and counting"),
+        ("Active days", f"{s['active_days']:,}", "days with a contribution"),
+        ("1,000+ contributions", f"{len(big)} years", f"out of the last {span}" if big else "in a year"),
+        ("Best day", f"{s['best_day']:,}", f"on {best_on}"),
+        ("On GitHub", f"{s['years_on_github']} years", f"since {s['since']}"),
+    ]
+    label = (
+        f"{s['contributions']:,} contributions since {s['since']}, {s['this_year_contributions']:,} in {s['this_year']}, "
+        f"{s['active_days']:,} active days, best day {s['best_day']} contributions"
+    )
+    return tiles_card(tiles, label)
+
+
+def years_card(s):
+    w, h = W, 236
+    years = [y for y in sorted(s["by_year"]) if s["by_year"][y] > 0]
+    years = years[next(i for i, y in enumerate(years) if s["by_year"][y] >= 10):]
+    vals = [s["by_year"][y] for y in years]
+    top = max(vals)
+    left, right, base, ph = 32, 32, 196, 120
+    slot = (w - left - right) / len(years)
+    bw = min(44, slot * 0.56)
+    body = stars(h, 40, seed=5, twinkle=0.12)
+    body += f'<text x="{left}" y="36" fill="{INK}" font-size="15" font-weight="600">Contributions by year</text>'
+    body += f'<line x1="{left}" x2="{w - right}" y1="{base}" y2="{base}" stroke="{STROKE}"/>'
+    for i, (y, v) in enumerate(zip(years, vals)):
+        cx = left + slot * i + slot / 2
+        bh = max(2, ph * v / top)
+        x0, y0, r = cx - bw / 2, base - bh, min(4, bh / 2)
+        path = (
+            f"M{x0:.1f},{base} V{y0 + r:.1f} Q{x0:.1f},{y0:.1f} {x0 + r:.1f},{y0:.1f} "
+            f"H{x0 + bw - r:.1f} Q{x0 + bw:.1f},{y0:.1f} {x0 + bw:.1f},{y0 + r:.1f} V{base} Z"
+        )
+        fill = STAR if y == s["this_year"] else ACCENT
+        body += (
+            f'<path d="{path}" fill="{fill}" fill-opacity=".85"/>'
+            f'<text x="{cx:.1f}" y="{y0 - 8:.1f}" fill="{INK2}" font-size="12" text-anchor="middle">{v:,}</text>'
+            f'<text x="{cx:.1f}" y="{base + 20}" fill="{MUTED}" font-size="12" text-anchor="middle">{y}</text>'
+        )
+    label = "Contributions by year: " + ", ".join(f"{y}: {v:,}" for y, v in zip(years, vals))
+    return svg(h, body, label)
 
 
 # ── writing, from the site's sitemap ───────────────────────────────────────
@@ -184,6 +238,7 @@ def main():
     OUT.mkdir(exist_ok=True)
     (OUT / "header.svg").write_text(header())
     (OUT / "stats.svg").write_text(stats_card(s))
+    (OUT / "years.svg").write_text(years_card(s))
     try:
         posts = writing()
     except Exception as e:  # the site being down shouldn't block the stats refresh

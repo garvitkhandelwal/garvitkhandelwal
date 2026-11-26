@@ -23,7 +23,7 @@
 
 ### GitHub stats
 
-<img src="./assets/stats.svg" width="100%" alt="Total contributions and contributions this year" />
+<img src="./assets/stats.svg" width="100%" alt="Contribution stats: total, this year, active days, best day" />
 
 </td>
 <td valign="top" width="50%">
@@ -42,3 +42,5 @@
 </td>
 </tr>
 </table>
+
+<img src="./assets/years.svg" width="100%" alt="Contributions by year" />
