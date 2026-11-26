@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the profile header and stats cards from live GitHub data.
+"""Render the profile header and stats card, and refresh the writing list.
 
 Usage:  METRICS_TOKEN=... python3 scripts/generate.py
 
@@ -8,16 +8,21 @@ requests in private repos are counted.
 """
 
 import datetime as dt
+import html
 import json
 import os
 import random
+import re
 import urllib.request
 from pathlib import Path
 
 LOGIN = os.environ.get("PROFILE_LOGIN", "garvitkhandelwal")
 NAME = "Garvit Khandelwal"
 ROLE = "Founding Engineer at Wavelength (YC W24)"
-OUT = Path(__file__).resolve().parent.parent / "assets"
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "assets"
+README = ROOT / "README.md"
+SITE = "https://garvitkhandelwal.com"
 
 W = 840
 BG0, BG1 = "#070A14", "#0D1330"
@@ -86,22 +91,22 @@ def stats():
 
 
 # ── svg ────────────────────────────────────────────────────────────────────
-def svg(h, body, label):
+def svg(h, body, label, w=W):
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{h}" viewBox="0 0 {W} {h}" '
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}" '
         f'role="img" aria-label="{label}"><title>{label}</title>'
         f'<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">'
         f'<stop offset="0" stop-color="{BG0}"/><stop offset="1" stop-color="{BG1}"/></linearGradient></defs>'
-        f'<rect x=".5" y=".5" width="{W - 1}" height="{h - 1}" rx="14" fill="url(#bg)" stroke="{STROKE}"/>'
+        f'<rect x=".5" y=".5" width="{w - 1}" height="{h - 1}" rx="14" fill="url(#bg)" stroke="{STROKE}"/>'
         f'<g font-family="{SANS}">{body}</g></svg>'
     )
 
 
-def stars(h, n, seed, twinkle):
+def stars(h, n, seed, twinkle, w=W):
     rnd = random.Random(seed)
     out = []
     for _ in range(n):
-        x, y = rnd.uniform(6, W - 6), rnd.uniform(6, h - 6)
+        x, y = rnd.uniform(6, w - 6), rnd.uniform(6, h - 6)
         r = rnd.choice([0.5, 0.6, 0.7, 0.8, 1.0, 1.2, 1.5])
         op = rnd.uniform(0.25, 0.85)
         anim = ""
@@ -142,29 +147,59 @@ def header():
 
 
 def stats_card(s):
-    h = 150
+    w, h = 440, 252
     tiles = [
         ("Pull requests", f"{s['prs']:,}", f"{s['prs_this_year']:,} this year"),
         ("Merged", f"{s['merged']:,}", f"{s['merge_rate']}% merge rate"),
         ("Commits", f"{s['commits']:,}", "across pull requests"),
         ("Contributions", f"{s['contributions']:,}", f"since {s['since']}"),
     ]
-    pad, gap = 20, 12
-    tw, th = (W - 2 * pad - 3 * gap) / 4, h - 2 * pad
-    body = stars(h, 40, seed=3, twinkle=0.12)
+    pad, gap = 16, 10
+    tw, th = (w - 2 * pad - gap) / 2, (h - 2 * pad - gap) / 2
+    body = stars(h, 30, seed=3, twinkle=0.12, w=w)
     for i, (label, value, note) in enumerate(tiles):
-        x, y = pad + i * (tw + gap), pad
+        x, y = pad + (i % 2) * (tw + gap), pad + (i // 2) * (th + gap)
         body += (
-            f'<rect x="{x:.1f}" y="{y}" width="{tw:.1f}" height="{th}" rx="10" fill="{TILE}" fill-opacity=".85" stroke="{STROKE}"/>'
-            f'<text x="{x + 18:.1f}" y="{y + 32}" fill="{MUTED}" font-size="14">{label}</text>'
-            f'<text x="{x + 17:.1f}" y="{y + 70}" fill="{INK}" font-size="32" font-weight="700" letter-spacing="-.5">{value}</text>'
-            f'<text x="{x + 18:.1f}" y="{y + 94}" fill="{MUTED}" font-size="13.5">{note}</text>'
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{tw:.1f}" height="{th:.1f}" rx="10" fill="{TILE}" fill-opacity=".85" stroke="{STROKE}"/>'
+            f'<text x="{x + 18:.1f}" y="{y + 30:.1f}" fill="{MUTED}" font-size="14">{label}</text>'
+            f'<text x="{x + 17:.1f}" y="{y + 68:.1f}" fill="{INK}" font-size="32" font-weight="700" letter-spacing="-.5">{value}</text>'
+            f'<text x="{x + 18:.1f}" y="{y + 92:.1f}" fill="{MUTED}" font-size="13.5">{note}</text>'
         )
     label = (
         f"{s['prs']:,} pull requests, {s['merged']:,} merged, {s['commits']:,} commits, "
         f"{s['contributions']:,} contributions since {s['since']}"
     )
-    return svg(h, body, label)
+    return svg(h, body, label, w)
+
+
+# ── writing, from the site's sitemap ───────────────────────────────────────
+def fetch(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "profile-stats"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.read().decode("utf-8", "replace")
+
+
+def writing(limit=5):
+    urls = re.findall(r"<loc>([^<]+/blog/[^<]+)</loc>", fetch(f"{SITE}/sitemap.xml"))
+    posts = []
+    for url in urls:
+        page = fetch(url)
+        title = re.search(r"<title>(.*?)</title>", page, re.S)
+        date = re.search(r'article:published_time" content="([0-9-]+)', page)
+        if title:
+            name = html.unescape(title.group(1)).split(" | ")[0].strip()
+            posts.append((date.group(1) if date else "", name, url))
+    posts.sort(reverse=True)
+    return [
+        f"- [{name}]({url})" + (f" · {dt.date.fromisoformat(d):%b %Y}" if d else "")
+        for d, name, url in posts[:limit]
+    ]
+
+
+def update_readme(lines):
+    text = README.read_text()
+    block = "<!-- writing:start -->\n" + "\n".join(lines) + "\n<!-- writing:end -->"
+    README.write_text(re.sub(r"<!-- writing:start -->.*?<!-- writing:end -->", lambda _: block, text, flags=re.S))
 
 
 def main():
@@ -172,6 +207,13 @@ def main():
     OUT.mkdir(exist_ok=True)
     (OUT / "header.svg").write_text(header())
     (OUT / "stats.svg").write_text(stats_card(s))
+    try:
+        posts = writing()
+    except Exception as e:  # the site being down shouldn't block the stats refresh
+        print(f"skipping writing list: {e}")
+    else:
+        if posts:
+            update_readme(posts)
     print(json.dumps(s))
 
 
