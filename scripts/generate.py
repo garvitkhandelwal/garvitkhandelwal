@@ -146,28 +146,49 @@ def header():
     return svg(h, body, f"{NAME}, {ROLE}")
 
 
+# Octicons (16px), as used by github-readme-stats.
+ICONS = {
+    "pr": "M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z",
+    "merge": "M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z",
+    "commit": "M1.643 3.143L.427 1.927A.25.25 0 000 2.104V5.75c0 .138.112.25.25.25h3.646a.25.25 0 00.177-.427L2.715 4.215a6.5 6.5 0 11-1.18 4.458.75.75 0 10-1.493.154 8.001 8.001 0 101.6-5.684zM7.75 4a.75.75 0 01.75.75v2.992l2.028.812a.75.75 0 01-.557 1.392l-2.5-1A.75.75 0 017 8.25v-3.5A.75.75 0 017.75 4z",
+    "grid": "M1 1h6v6H1zM9 1h6v6H9zM1 9h6v6H1zM9 9h6v6H9z",
+}
+
+
 def stats_card(s):
-    w, h = 440, 252
-    tiles = [
-        ("Pull requests", f"{s['prs']:,}", f"{s['prs_this_year']:,} this year"),
-        ("Merged", f"{s['merged']:,}", f"{s['merge_rate']}% merge rate"),
-        ("Commits", f"{s['commits']:,}", "across pull requests"),
-        ("Contributions", f"{s['contributions']:,}", f"since {s['since']}"),
+    """github-readme-stats layout: icon rows on the left, a ring on the right."""
+    w, h = 440, 186
+    rows = [
+        ("pr", "Total PRs", f"{s['prs']:,}"),
+        ("pr", f"PRs in {s['this_year']}", f"{s['prs_this_year']:,}"),
+        ("merge", "Merged PRs", f"{s['merged']:,}"),
+        ("commit", "Total commits", f"{s['commits']:,}"),
+        ("grid", "Contributions", f"{s['contributions']:,}"),
     ]
-    pad, gap = 16, 10
-    tw, th = (w - 2 * pad - gap) / 2, (h - 2 * pad - gap) / 2
-    body = stars(h, 30, seed=3, twinkle=0.12, w=w)
-    for i, (label, value, note) in enumerate(tiles):
-        x, y = pad + (i % 2) * (tw + gap), pad + (i // 2) * (th + gap)
+    body = stars(h, 26, seed=3, twinkle=0.12, w=w)
+    for i, (icon, label, value) in enumerate(rows):
+        y = 30 + i * 30
         body += (
-            f'<rect x="{x:.1f}" y="{y:.1f}" width="{tw:.1f}" height="{th:.1f}" rx="10" fill="{TILE}" fill-opacity=".85" stroke="{STROKE}"/>'
-            f'<text x="{x + 18:.1f}" y="{y + 30:.1f}" fill="{MUTED}" font-size="14">{label}</text>'
-            f'<text x="{x + 17:.1f}" y="{y + 68:.1f}" fill="{INK}" font-size="32" font-weight="700" letter-spacing="-.5">{value}</text>'
-            f'<text x="{x + 18:.1f}" y="{y + 92:.1f}" fill="{MUTED}" font-size="13.5">{note}</text>'
+            f'<path transform="translate(24 {y - 12}) scale(.95)" d="{ICONS[icon]}" fill="{ACCENT}"'
+            + (' fill-opacity=".9" transform-origin="0 0"' if icon == "grid" else "")
+            + "/>"
+            f'<text x="50" y="{y}" fill="{INK2}" font-size="14">{label}:</text>'
+            f'<text x="206" y="{y}" fill="{INK}" font-size="14" font-weight="700">{value}</text>'
         )
+    # merge-rate ring
+    cx, cy, r = 352, 93, 46
+    circ = 2 * 3.14159265 * r
+    on = circ * s["merge_rate"] / 100
+    body += (
+        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{STROKE}" stroke-width="7"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{ACCENT}" stroke-width="7" stroke-linecap="round" '
+        f'stroke-dasharray="{on:.1f} {circ:.1f}" transform="rotate(-90 {cx} {cy})"/>'
+        f'<text x="{cx}" y="{cy + 4}" fill="{INK}" font-size="24" font-weight="700" text-anchor="middle">{s["merge_rate"]}%</text>'
+        f'<text x="{cx}" y="{cy + 22}" fill="{MUTED}" font-size="11.5" text-anchor="middle">merged</text>'
+    )
     label = (
-        f"{s['prs']:,} pull requests, {s['merged']:,} merged, {s['commits']:,} commits, "
-        f"{s['contributions']:,} contributions since {s['since']}"
+        f"{s['prs']:,} pull requests, {s['merged']:,} merged ({s['merge_rate']}%), "
+        f"{s['commits']:,} commits, {s['contributions']:,} contributions"
     )
     return svg(h, body, label, w)
 
