@@ -1,4 +1,4 @@
-name: Refresh profile stats
+name: Refresh profile
 
 on:
   schedule:
@@ -11,31 +11,23 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    env:
-      METRICS_TOKEN: ${{ secrets.METRICS_TOKEN }}
     steps:
-      - name: Skip without a token that can see private work
-        if: env.METRICS_TOKEN == ''
-        run: echo "::warning::Add a METRICS_TOKEN secret (classic PAT, scopes repo + read:user) to refresh stats. Keeping the current numbers."
-
       - uses: actions/checkout@v4
-        if: env.METRICS_TOKEN != ''
 
       - uses: actions/setup-python@v5
-        if: env.METRICS_TOKEN != ''
         with:
           python-version: "3.12"
 
       - name: Render cards and refresh writing list
-        if: env.METRICS_TOKEN != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/generate.py
 
       - name: Commit if changed
-        if: env.METRICS_TOKEN != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets README.md
           git diff --cached --quiet && echo "No changes" && exit 0
-          git commit -m "chore: refresh profile stats"
+          git commit -m "chore: refresh profile"
           git push

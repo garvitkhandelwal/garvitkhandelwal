@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Render the profile header and stats card, and refresh the writing list.
 
-Usage:  METRICS_TOKEN=... python3 scripts/generate.py
+Usage:  GITHUB_TOKEN=... python3 scripts/generate.py
 
-Standard library only. The token needs `repo` + `read:user` so that pull
-requests in private repos are counted.
+Standard library only. Contribution totals are public
+(private work is included as anonymous counts), so the default Actions token
+is enough.
 """
 
 import datetime as dt
@@ -51,41 +52,19 @@ def stats():
     since = int(gql("query($l:String!){user(login:$l){createdAt}}", {"l": LOGIN})["createdAt"][:4])
     this_year = dt.date.today().year
 
-    contributions = 0
+    by_year = {}
     for year in range(since, this_year + 1):
         c = gql(
             "query($l:String!,$f:DateTime!,$t:DateTime!){user(login:$l){"
             "contributionsCollection(from:$f,to:$t){contributionCalendar{totalContributions}}}}",
             {"l": LOGIN, "f": f"{year}-01-01T00:00:00Z", "t": f"{year}-12-31T23:59:59Z"},
         )
-        contributions += c["contributionsCollection"]["contributionCalendar"]["totalContributions"]
-
-    prs = merged = closed = commits = prs_this_year = 0
-    cursor = None
-    while True:
-        page = gql(
-            "query($l:String!,$c:String){user(login:$l){pullRequests(first:100,after:$c){"
-            "pageInfo{hasNextPage endCursor} nodes{state createdAt commits{totalCount}}}}}",
-            {"l": LOGIN, "c": cursor},
-        )["pullRequests"]
-        for pr in page["nodes"]:
-            prs += 1
-            merged += pr["state"] == "MERGED"
-            closed += pr["state"] != "OPEN"
-            commits += pr["commits"]["totalCount"]
-            prs_this_year += pr["createdAt"].startswith(str(this_year))
-        if not page["pageInfo"]["hasNextPage"]:
-            break
-        cursor = page["pageInfo"]["endCursor"]
+        by_year[year] = c["contributionsCollection"]["contributionCalendar"]["totalContributions"]
 
     return {
-        "prs": prs,
-        "prs_this_year": prs_this_year,
+        "contributions": sum(by_year.values()),
+        "this_year_contributions": by_year[this_year],
         "this_year": this_year,
-        "merged": merged,
-        "merge_rate": round(100 * merged / max(1, closed)),
-        "commits": commits,
-        "contributions": contributions,
         "since": since,
     }
 
@@ -146,49 +125,26 @@ def header():
     return svg(h, body, f"{NAME}, {ROLE}")
 
 
-# Octicons (16px), as used by github-readme-stats.
-ICONS = {
-    "pr": "M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z",
-    "merge": "M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z",
-    "commit": "M1.643 3.143L.427 1.927A.25.25 0 000 2.104V5.75c0 .138.112.25.25.25h3.646a.25.25 0 00.177-.427L2.715 4.215a6.5 6.5 0 11-1.18 4.458.75.75 0 10-1.493.154 8.001 8.001 0 101.6-5.684zM7.75 4a.75.75 0 01.75.75v2.992l2.028.812a.75.75 0 01-.557 1.392l-2.5-1A.75.75 0 017 8.25v-3.5A.75.75 0 017.75 4z",
-    "grid": "M1 1h6v6H1zM9 1h6v6H9zM1 9h6v6H1zM9 9h6v6H9z",
-}
-
-
 def stats_card(s):
-    """github-readme-stats layout: icon rows on the left, a ring on the right."""
-    w, h = 440, 186
-    rows = [
-        ("pr", "Total PRs", f"{s['prs']:,}"),
-        ("pr", f"PRs in {s['this_year']}", f"{s['prs_this_year']:,}"),
-        ("merge", "Merged PRs", f"{s['merged']:,}"),
-        ("commit", "Total commits", f"{s['commits']:,}"),
-        ("grid", "Contributions", f"{s['contributions']:,}"),
+    w, h = 440, 132
+    tiles = [
+        ("Total contributions", f"{s['contributions']:,}", f"since {s['since']}"),
+        (f"Contributions in {s['this_year']}", f"{s['this_year_contributions']:,}", "and counting"),
     ]
-    body = stars(h, 26, seed=3, twinkle=0.12, w=w)
-    for i, (icon, label, value) in enumerate(rows):
-        y = 30 + i * 30
+    pad, gap = 16, 10
+    tw, th = (w - 2 * pad - gap) / 2, h - 2 * pad
+    body = stars(h, 24, seed=3, twinkle=0.12, w=w)
+    for i, (label, value, note) in enumerate(tiles):
+        x = pad + i * (tw + gap)
         body += (
-            f'<path transform="translate(24 {y - 12}) scale(.95)" d="{ICONS[icon]}" fill="{ACCENT}"'
-            + (' fill-opacity=".9" transform-origin="0 0"' if icon == "grid" else "")
-            + "/>"
-            f'<text x="50" y="{y}" fill="{INK2}" font-size="14">{label}:</text>'
-            f'<text x="206" y="{y}" fill="{INK}" font-size="14" font-weight="700">{value}</text>'
+            f'<rect x="{x:.1f}" y="{pad}" width="{tw:.1f}" height="{th}" rx="10" fill="{TILE}" fill-opacity=".85" stroke="{STROKE}"/>'
+            f'<text x="{x + 18:.1f}" y="{pad + 30}" fill="{MUTED}" font-size="14">{label}</text>'
+            f'<text x="{x + 17:.1f}" y="{pad + 68}" fill="{INK}" font-size="32" font-weight="700" letter-spacing="-.5">{value}</text>'
+            f'<text x="{x + 18:.1f}" y="{pad + 89}" fill="{MUTED}" font-size="13">{note}</text>'
         )
-    # merge-rate ring
-    cx, cy, r = 352, 93, 46
-    circ = 2 * 3.14159265 * r
-    on = circ * s["merge_rate"] / 100
-    body += (
-        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{STROKE}" stroke-width="7"/>'
-        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{ACCENT}" stroke-width="7" stroke-linecap="round" '
-        f'stroke-dasharray="{on:.1f} {circ:.1f}" transform="rotate(-90 {cx} {cy})"/>'
-        f'<text x="{cx}" y="{cy + 4}" fill="{INK}" font-size="24" font-weight="700" text-anchor="middle">{s["merge_rate"]}%</text>'
-        f'<text x="{cx}" y="{cy + 22}" fill="{MUTED}" font-size="11.5" text-anchor="middle">merged</text>'
-    )
     label = (
-        f"{s['prs']:,} pull requests, {s['merged']:,} merged ({s['merge_rate']}%), "
-        f"{s['commits']:,} commits, {s['contributions']:,} contributions"
+        f"{s['contributions']:,} contributions since {s['since']}, "
+        f"{s['this_year_contributions']:,} in {s['this_year']}"
     )
     return svg(h, body, label, w)
 

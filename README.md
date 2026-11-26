@@ -23,7 +23,7 @@
 
 ### GitHub stats
 
-<img src="./assets/stats.svg" width="100%" alt="GitHub stats: pull requests, merged, commits, contributions" />
+<img src="./assets/stats.svg" width="100%" alt="Total contributions and contributions this year" />
 
 </td>
 <td valign="top" width="50%">
